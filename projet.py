@@ -45,7 +45,7 @@ def perceptronMul():
     model.compile(optimizer='sgd', loss='categorical_crossentropy', metrics=['accuracy'])
     model.fit(x=x_train, y=y_train, validation_data=(x_test, y_test), epochs=5, callbacks=[tensorboard])
     model.summary()
-    model.predict(im.Flatten((32, 32, 3)),(32, 32, 3))
+    #model.predict(im.Flatten((32, 32, 3)),(32, 32, 3))
     return 0
 
 
@@ -130,17 +130,9 @@ def gen2():
     generator.add(Dense(15*15*128,input_shape=(10,)))
     generator.add(LeakyReLU(0.1))
     generator.add(Reshape((15,15,128)))
-    generator.add(UpSampling2D(size=(2,2)))
+    generator.add(UpSampling2D(size=(2,2)))#multiply by 2 rows and columns
     generator.add(Conv2DTranspose(3,kernel_size=(3,3)))#add 2 rows and 2 columns
-    generator.add(LeakyReLU(0.1))
-    generator.add(Flatten())
-
-    generator.add(Dense(256))
-    generator.add(Activation(LeakyReLU()))
-    generator.add(Dense(512))
-    generator.add(Activation(LeakyReLU()))
-
-    generator.add(Dense(3072))
+    generator.add(Dropout(0.2))
     generator.add(Activation('tanh'))
     generator.add(Reshape((32,32,3)))
     return generator
@@ -149,23 +141,23 @@ def gen2():
 def discrim():
     discriminator = Sequential()
     discriminator.add(Conv2D(filters=32,kernel_size=(3,3),strides=(2,2),padding='same',input_shape=(32, 32, 3)))
-    discriminator.add(LeakyReLU())
+    discriminator.add(LeakyReLU(0.1))
     discriminator.add(Conv2D(filters=32, kernel_size=(3, 3)))
     discriminator.add(MaxPooling2D((2, 2)))
     discriminator.add(Conv2D(filters=32, kernel_size=(3, 3), strides=(2, 2), padding='same'))
-    discriminator.add(LeakyReLU())
+    discriminator.add(LeakyReLU(0.1))
     discriminator.add(Conv2D(filters=32, kernel_size=(3, 3)))
-    discriminator.add(LeakyReLU())
+    discriminator.add(LeakyReLU(0.1))
     discriminator.add(MaxPooling2D((2,2)))
     discriminator.add(Conv2D(filters=32, kernel_size=(3, 3), strides=(2, 2), padding='same'))
-    discriminator.add(LeakyReLU())
-
+    discriminator.add(LeakyReLU(0.1))
     discriminator.add(Flatten())
     discriminator.add(Dense(256))
     discriminator.add(LeakyReLU())
     discriminator.add(Dense(512))
     discriminator.add(LeakyReLU())
     discriminator.add(Dense(1024))
+    discriminator.add(Dropout(0.3))
 
     discriminator.add(LeakyReLU())
     discriminator.add(Dense(1))
@@ -191,7 +183,7 @@ def train():
     x_train_c = x_train[np.where(y_train == 8)[0]]  # Using ship only
     num_batches = int(len(x_train_c) / batch_size)
 
-    for epoch in range(1):
+    for epoch in range(10):
         for batch in range(num_batches):
             # Select a random batch from x_train_c
             x = x_train_c[np.random.randint(0, len(x_train_c), size=batch_size)]
@@ -215,7 +207,7 @@ def train():
                   (epoch + 1, batch, num_batches) + \
                   ' gloss=%.4f,dloss=%.4f' % (gloss, dloss), end='')
             print('')
-    #generator.save(filepath='geneTConv2D.h5')
+    generator.save_weights(filepath='weights/geneTConv2D.h5')
     noise = np.random.normal(0, 1, size=[4, 10])
     gen_imgs = generator.predict(noise)
     for i in range(len(noise)):
@@ -224,7 +216,8 @@ def train():
     return generator
 
 def useModel():
-    generator = load_model('geneTConv2D.h5')
+    generator = gen2()
+    generator.load_weights('weights/geneTConv2D.h5')
 
     noise = np.random.normal(0, 1, size=[4, 10])
     gen_imgs = generator.predict(noise)
@@ -233,4 +226,3 @@ def useModel():
         plt.show()
     return 0
 
-train()
