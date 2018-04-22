@@ -1,9 +1,6 @@
 
 from keras.datasets import cifar10
 
-(x_train,y_train),(x_test,y_test)=cifar10.load_data()
-x_train=(x_train-127.5)/127.5
-x_test=(x_test-127.5)/127.5
 #CR pour le 22/04
 from keras.models import Model,Sequential,load_model
 from keras.layers import Input, Dense,Flatten, Activation, Dropout
@@ -12,7 +9,9 @@ from keras.layers import UpSampling2D, Conv2DTranspose, Reshape
 from keras.layers.advanced_activations import LeakyReLU
 from keras.optimizers import SGD, Adam
 from keras.utils import to_categorical
-
+(x_train,y_train),(x_test,y_test)=cifar10.load_data()
+x_train=(x_train-127.5)/127.5
+x_test=(x_test-127.5)/127.5
 import matplotlib as mpl
 #mpl.use ( ’ Agg ’ ) # Uncomment this if you have problems to use plt.imshow
 #In that case , replace plt.imshow by plt.imsave ( ’filename.png’, var ) ,
@@ -23,14 +22,16 @@ import numpy as np
 
 print(x_train.shape)
 
-#y_train = to_categorical(y_train, num_classes=10)
-#y_test = to_categorical(y_test, num_classes=10)
+
 
 
 
 
 
 def perceptronMul():
+    (x_train, y_train), (x_test, y_test) = cifar10.load_data()
+    x_train = (x_train - 127.5) / 127.5
+    x_test = (x_test - 127.5) / 127.5
     model = Sequential()
     model.add(Flatten(input_shape=(32,32,3)))
     model.add(Dense(512))
@@ -46,7 +47,7 @@ def perceptronMul():
     model.compile(optimizer='sgd', loss='categorical_crossentropy', metrics=['accuracy'])
     model.fit(x=x_train, y=y_train, validation_data=(x_test, y_test), epochs=5, callbacks=[tensorboard])
     model.summary()
-    #model.predict(im.Flatten((32, 32, 3)),(32, 32, 3))
+
     return 0
 
 
@@ -58,6 +59,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 def CNN():
+    (x_train, y_train), (x_test, y_test) = cifar10.load_data()
+    x_train = (x_train - 127.5) / 127.5
+    x_test = (x_test - 127.5) / 127.5
+    y_train = to_categorical(y_train, num_classes=10)
+    y_test = to_categorical(y_test, num_classes=10)
     model = Sequential()
     model.add(Conv2D(filters=32,kernel_size=(3,3),strides=(2,2),padding='same',input_shape=(32, 32, 3)))#Conv2D(nbDeFiltres utilisés,taille de decoupe,on garde la même taille ou non (valid= non),stripes=on decoupe tout les #stripes pixels)
     model.add(LeakyReLU())
@@ -111,6 +117,7 @@ def CNN():
 
 
 def gen():
+
     generator = Sequential()
     generator.add(Dense(256,input_shape=(10,)))
     generator.add(LeakyReLU())
@@ -122,7 +129,8 @@ def gen():
     generator.add(Dropout(0.1))
     generator.add(Dense(3072))
     generator.add(Activation('tanh'))#to put the output between 0 and 1
-    generator.add(Dropout(0.5))
+    generator.add(Dropout(0.1))
+
     generator.add(Reshape((32,32,3)))
 
 
@@ -130,6 +138,9 @@ def gen():
     return generator
 
 def gen2():
+    (x_train, y_train), (x_test, y_test) = cifar10.load_data()
+    x_train = (x_train - 127.5) / 127.5
+    x_test = (x_test - 127.5) / 127.5
     generator = Sequential()
     generator.add(Dense(7*7*128,input_shape=(10,)))
     generator.add(LeakyReLU(0.1))
@@ -141,15 +152,8 @@ def gen2():
     generator.add(UpSampling2D((2,2)))
     generator.add(Conv2D(128,(3,3)))
     generator.add(LeakyReLU())
-    generator.add(Dropout(0.2))
     generator.add(Conv2DTranspose(3,(3,3)))
-    generator.add(Flatten())
-    generator.add(Dense(1024))
-    generator.add(LeakyReLU())
-    generator.add(Dropout(0.2))
-    generator.add(Dense(3072))
     generator.add(Activation('tanh'))
-    generator.add(Dropout(0.5))
     generator.add(Reshape((32,32,3)))
     return generator
 
@@ -170,17 +174,17 @@ def discrim():
     discriminator.add(MaxPooling2D((2,2)))
     discriminator.add(Conv2D(filters=32, kernel_size=(3, 3), strides=(2, 2), padding='same'))
     discriminator.add(LeakyReLU(0.1))
-    discriminator.add(Dropout(0.2))
+    discriminator.add(Dropout(0.1))
     discriminator.add(Flatten())
     discriminator.add(Dense(256))
     discriminator.add(LeakyReLU())
-    discriminator.add(Dropout(0.2))
+    discriminator.add(Dropout(0.1))
     discriminator.add(Dense(512))
     discriminator.add(LeakyReLU())
-    discriminator.add(Dropout(0.2))
+    discriminator.add(Dropout(0.1))
     discriminator.add(Dense(2048))
     discriminator.add(LeakyReLU())
-    discriminator.add(Dropout(0.3))
+    discriminator.add(Dropout(0.1))
     discriminator.add(Dense(1))
     discriminator.add(Activation('sigmoid'))#probabilité
     discriminator.compile(loss='binary_crossentropy',optimizer=Adam(1e-3,1e-5))
@@ -191,9 +195,12 @@ def discrim():
 
 
 def train():
+    (x_train, y_train), (x_test, y_test) = cifar10.load_data()
+    x_train = (x_train - 127.5) / 127.5
+    x_test = (x_test - 127.5) / 127.5
 
     discriminator = discrim()
-    generator = gen()
+    generator = gen2()
     gan_input = Input(shape=(10,))
     fake_image = generator(gan_input)
     gan_output = discriminator(fake_image)
@@ -204,7 +211,7 @@ def train():
     x_train_c = x_train[np.where(y_train == 8)[0]]  # Using ship only
     num_batches = int(len(x_train_c) / batch_size)
 
-    for epoch in range(5):
+    for epoch in range(10):
         for batch in range(num_batches):
             # Select a random batch from x_train_c
             x = x_train_c[np.random.randint(0, len(x_train_c), size=batch_size)]
@@ -237,7 +244,8 @@ def train():
     return generator
 
 def useModel():
-    generator = gen()
+
+    generator = gen2()
     generator.load_weights('weights/geneTConv2D.h5')
 
     noise = np.random.normal(0, 1, size=[4, 10])
