@@ -17,6 +17,7 @@ import matplotlib as mpl
 #mpl.use ( ’ Agg ’ ) # Uncomment this if you have problems to use plt.imshow
 #In that case , replace plt.imshow by plt.imsave ( ’filename.png’, var ) ,
 #so the image will be saved to a file instead of displayed .
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -115,10 +116,13 @@ def gen():
     generator.add(LeakyReLU())
     generator.add(Dense(512))
     generator.add(LeakyReLU())
+    generator.add(Dropout(0.1))
     generator.add(Dense(1024))
     generator.add(LeakyReLU())
+    generator.add(Dropout(0.1))
     generator.add(Dense(3072))
     generator.add(Activation('tanh'))#to put the output between 0 and 1
+    generator.add(Dropout(0.5))
     generator.add(Reshape((32,32,3)))
 
 
@@ -127,13 +131,25 @@ def gen():
 
 def gen2():
     generator = Sequential()
-    generator.add(Dense(15*15*128,input_shape=(10,)))
+    generator.add(Dense(7*7*128,input_shape=(10,)))
     generator.add(LeakyReLU(0.1))
-    generator.add(Reshape((15,15,128)))
+    generator.add(Reshape((7,7,128)))
     generator.add(UpSampling2D(size=(2,2)))#multiply by 2 rows and columns
-    generator.add(Conv2DTranspose(3,kernel_size=(3,3)))#add 2 rows and 2 columns
+    generator.add(Conv2DTranspose(64,kernel_size=(3,3)))#add 2 rows and 2 columns
+    generator.add(LeakyReLU())
     generator.add(Dropout(0.2))
+    generator.add(UpSampling2D((2,2)))
+    generator.add(Conv2D(128,(3,3)))
+    generator.add(LeakyReLU())
+    generator.add(Dropout(0.2))
+    generator.add(Conv2DTranspose(3,(3,3)))
+    generator.add(Flatten())
+    generator.add(Dense(1024))
+    generator.add(LeakyReLU())
+    generator.add(Dropout(0.2))
+    generator.add(Dense(3072))
     generator.add(Activation('tanh'))
+    generator.add(Dropout(0.5))
     generator.add(Reshape((32,32,3)))
     return generator
 
@@ -142,24 +158,29 @@ def discrim():
     discriminator = Sequential()
     discriminator.add(Conv2D(filters=32,kernel_size=(3,3),strides=(2,2),padding='same',input_shape=(32, 32, 3)))
     discriminator.add(LeakyReLU(0.1))
+    discriminator.add(Dropout(0.2))
     discriminator.add(Conv2D(filters=32, kernel_size=(3, 3)))
+    discriminator.add(LeakyReLU(0.1))
     discriminator.add(MaxPooling2D((2, 2)))
     discriminator.add(Conv2D(filters=32, kernel_size=(3, 3), strides=(2, 2), padding='same'))
     discriminator.add(LeakyReLU(0.1))
+    discriminator.add(Dropout(0.2))
     discriminator.add(Conv2D(filters=32, kernel_size=(3, 3)))
     discriminator.add(LeakyReLU(0.1))
     discriminator.add(MaxPooling2D((2,2)))
     discriminator.add(Conv2D(filters=32, kernel_size=(3, 3), strides=(2, 2), padding='same'))
     discriminator.add(LeakyReLU(0.1))
+    discriminator.add(Dropout(0.2))
     discriminator.add(Flatten())
     discriminator.add(Dense(256))
     discriminator.add(LeakyReLU())
+    discriminator.add(Dropout(0.2))
     discriminator.add(Dense(512))
     discriminator.add(LeakyReLU())
-    discriminator.add(Dense(1024))
-    discriminator.add(Dropout(0.3))
-
+    discriminator.add(Dropout(0.2))
+    discriminator.add(Dense(2048))
     discriminator.add(LeakyReLU())
+    discriminator.add(Dropout(0.3))
     discriminator.add(Dense(1))
     discriminator.add(Activation('sigmoid'))#probabilité
     discriminator.compile(loss='binary_crossentropy',optimizer=Adam(1e-3,1e-5))
@@ -172,18 +193,18 @@ def discrim():
 def train():
 
     discriminator = discrim()
-    generator = gen2()
+    generator = gen()
     gan_input = Input(shape=(10,))
     fake_image = generator(gan_input)
     gan_output = discriminator(fake_image)
     gan = Model(gan_input, gan_output)  # this is the combined model
     gan.compile(loss='binary_crossentropy', optimizer=Adam(1e-4, 1e-5))
     gan.summary()
-    batch_size = 10
+    batch_size = 16
     x_train_c = x_train[np.where(y_train == 8)[0]]  # Using ship only
     num_batches = int(len(x_train_c) / batch_size)
 
-    for epoch in range(10):
+    for epoch in range(5):
         for batch in range(num_batches):
             # Select a random batch from x_train_c
             x = x_train_c[np.random.randint(0, len(x_train_c), size=batch_size)]
@@ -216,7 +237,7 @@ def train():
     return generator
 
 def useModel():
-    generator = gen2()
+    generator = gen()
     generator.load_weights('weights/geneTConv2D.h5')
 
     noise = np.random.normal(0, 1, size=[4, 10])
